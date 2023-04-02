@@ -707,6 +707,35 @@ pub(crate) item;
 - 在crate root中定义module，此时父模块的项相对于子模块是可见的
 - 在子模块中定义后引入到父模块
 
+一个例子:
+
+```rust
+mod delicious_snacks {
+    // TODO: Fix these use statements
+    use self::fruits::PEAR as fruits;
+    use self::veggies::CUCUMBER as veggies;
+
+    mod fruits {
+        pub const PEAR: &'static str = "Pear";
+        pub const APPLE: &'static str = "Apple";
+    }
+
+    mod veggies {
+        pub const CUCUMBER: &'static str = "Cucumber";
+        pub const CARROT: &'static str = "Carrot";
+    }
+}
+
+fn main() {
+    println!(
+        "favorite snacks: {} and {}",
+        delicious_snacks::fruits,
+        delicious_snacks::veggies
+    );
+}
+```
+这段代码不能够正常通过编译，原因在于我们尝试在外部`crate`中去访问子`module delicious_snacks`中的项,而里面的项是`private`的，为修改，应加入`pub`
+
 **限制性语法**
 
 ```rust
@@ -717,7 +746,7 @@ pub(super)  //在父模块可见
 pub(in <path>)  //在某个路径的模块可见，其中<path>必须是父模块/祖先模块
 ```
 
-> 在同一个模块中一个模块项可以访问其他的模块项，即使是私有的
+> 在同一个模块中一个**模块项**可以访问其他的**模块项**，即使是私有的
 
 #### 注释与文档
 
@@ -839,3 +868,57 @@ pub struct owo{}
 
 - `parse`方法
   返回一个Result类型值，用于将字符串类型转化为整数类型
+
+- `pop`方法
+  返回一个`Option<T>`
+
+- `ref`关键字
+  可以用于将一个值绑定到一个引用上
+  ```rust
+  let ref a = b;
+  这相当于
+  let a = &b;
+  ```
+  这种写法在某些时候很好用，比如下面两段等价的代码
+  
+  **第一种写法**:
+
+  ```rust
+  fn main(){
+    let y: Option<&Point> = Some(&Point { x: 100, y: 200 });
+    match y {
+        // 这相当是Some(value)然后把&value绑定到了q上
+        Some(p) => {
+            println!("Co-ordinates are {},{} ", (*p).x, (*p).y)
+        }
+        _ => println!("no match"),
+    }
+    y; // Fix without deleting this line.
+  }
+  ```
+
+  **第二种写法**:
+
+  ```rust
+  fn main(){
+    let y: Option<Point> = Some(Point { x: 100, y: 200 });
+    match y {
+        // 这相当是Some(value)然后把&value绑定到了q上
+        Some(ref p) => {
+            println!("Co-ordinates are {},{} ", p.x, p.y)
+        }
+        _ => println!("no match"),
+    }
+    y; // Fix without deleting this line.
+  }
+  ```
+
+- `into`方法
+  返回的是一个`&String`类型
+
+- `trim`方法
+  返回的是一个`&str`类型
+
+- `to_uppercase`方法
+  返回一个`String`类型
+  
