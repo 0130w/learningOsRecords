@@ -260,6 +260,24 @@ pub struct Screen<T : Draw> {
 }
 ```
 
+注意，当我们需要指明函数参数是实现了某种特征的时候，需要采用如下的写法
+
+```rust
+fn function(a : impl trait_a, b : impl trait_b) -> ... {}
+```
+
+如果需要表示引入多种特征都可以调用该函数
+
+```rust
+fn function(a : impl trait_a + trait_b) -> ... {}
+```
+
+也可以引入泛型后用`where`约束
+
+```rust
+fn function<T>(a : T) where T : trait_a + trait_b -> ... {};
+```
+
 ### 集合类型
 
 #### Vector类型
