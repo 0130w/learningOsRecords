@@ -31,3 +31,7 @@
 学习Rust语言，目前进度在刚刚结束Rust Course的基础入门部分，rustlings中的练习进度为67/94
 
 ### Day3
+
+> date: 2023.4.3
+
+学习Rust语言，目前进度在Rust Course的结束了迭代器部分，rustlings中的练习进度为74/94
