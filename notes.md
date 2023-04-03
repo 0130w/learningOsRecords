@@ -19,6 +19,7 @@
     - [复合类型](#复合类型)
       - [枚举](#枚举)
       - [特征对象](#特征对象)
+    - [流程控制](#流程控制)
     - [集合类型](#集合类型)
       - [Vector类型](#vector类型)
       - [Hashmap](#hashmap)
@@ -86,11 +87,24 @@
       - [函数式编程](#函数式编程)
         - [闭包](#闭包)
           - [结构体中的闭包](#结构体中的闭包)
+          - [捕获作用域中的值](#捕获作用域中的值)
+      - [迭代器(Iterator)](#迭代器iterator)
+          - [惰性初始化](#惰性初始化)
+          - [next方法](#next方法)
+          - [IntoIterator特征](#intoiterator特征)
+          - [into\_iter, iter, iter\_mut](#into_iter-iter-iter_mut)
+          - [消费者与适配器](#消费者与适配器)
+          - [实现Iterator特征](#实现iterator特征)
+          - [`enumerate`](#enumerate)
+  - [常用工具链](#常用工具链)
+    - [自动化测试](#自动化测试)
+      - [编写测试以及控制执行](#编写测试以及控制执行)
   - [Appendix](#appendix)
     - [常用Crate](#常用crate)
       - [文件系统](#文件系统)
       - [I/O](#io)
     - [常用方法/函数](#常用方法函数)
+    - [随手记](#随手记)
 
 
 ---
@@ -292,6 +306,19 @@ fn function(a : impl trait_a + trait_b) -> ... {}
 ```rust
 fn function<T>(a : T) where T : trait_a + trait_b -> ... {};
 ```
+
+### 流程控制
+
+循环标签
+
+```rust
+'label : loop {
+  'qwq : loop {
+    break 'label;
+  }
+}
+```
+这玩意可以直接跳出最外面一层[感觉在什么语言见过]
 
 ### 集合类型
 
@@ -1147,7 +1174,257 @@ where T : Fn(u32) -> u32,
 }
 ```
 
-`query`是一个闭包，该闭包实现了特征`T`
+`query`是一个闭包，该闭包实现了特征`T`，然后这个特征是`Fn(u32)-> u32`，这个是std库里面说了为闭包自动实现的
+
+**思考：如何实现让闭包返回值为一个泛型**
+
+###### 捕获作用域中的值
+
+#### 迭代器(Iterator)
+
+迭代器和For循环的区别最主要的地方在于**是否通过索引来访问集合**
+
+在Rust中，数组并不是一个迭代器，但Rust自动为数组实现了`IntoIterator`特征，在`for`中，Rust通过`for`语法糖，将实现了该特征的数组自动转换成了一个迭代器，因此我们可以
+
+```rust
+let v = [1, 2, 3, 4];
+for i in v {
+  println!("{}", i);
+}
+```
+
+类似地，我们也可以
+
+```rust
+for i in 1..=10 {
+  println!("{}", i);
+}
+```
+
+实现了`IntoIterator`特征的类型具有一个`into_iter`方法，我们可以将这些类型显式地转化为迭代器
+
+```rust
+for i in v.into_iter() {
+  println!("{}", i);
+}
+```
+
+###### 惰性初始化
+
+在Rust中，迭代器是惰性的，在仅创建而不初始化的时候，不会发生任何事
+
+###### next方法
+
+迭代器不通过索引访问元素，它的遍历迭代器的方法是怎么样的?
+
+考虑如下的一个特征
+
+```rust
+pub trait Iterator {
+  type Item;  // 关联类型Item，用于代替遍历的值的类型
+  // 例如在数组中，Item = i32这样(自动推断)
+  fn next(&mut self) -> Option<Self::Item>;
+
+  // 省略其余有默认实现方式的方法
+}
+```
+
+某个类型需要转化为迭代器，需要实现`IntoInterator`特征，而一个迭代器之所以是迭代器，是因为它实现了`Iterator`特征，因此`for`访问迭代器中的元素可以通过`next`方法来实现
+
+**手动迭代的时候需要将迭代器标明为可变的，在使用`for`进行迭代的时候不需要做这件事，因为`for`会帮我们完成这件事**
+
+`next`方法对迭代器的是**消耗性**的，最终迭代器中是没有任何元素的
+
+例: 模拟了`for`循环
+```rust
+fn main () {
+    let values = [1, 2, 3];
+
+    let result = match IntoIterator::into_iter(values) {
+        mut iter => loop {
+            match iter.next() {
+                Some(x) => {
+                    println!("{}", x);
+                }
+                None => {
+                    break;
+                }
+            }
+        },
+    };
+    result
+}
+```
+
+###### IntoIterator特征
+
+难绷，迭代器自己也实现了`IntoIterator`特征
+
+###### into_iter, iter, iter_mut
+
+- `into_iter`会转移所有权
+  返回值为`Some(T)/None`
+- `iter`是不可变引用
+  返回值为`Some(&T)/None`
+- `iter_mut`是可变引用
+  返回值为`Some(&mut T)/ None`
+
+###### 消费者与适配器
+
+消费者是迭代器上的方法，它会消费掉迭代器中的元素，并返回该元素的值，这些所有的消费者都需要用`next`方法来消费元素
+
+- 消费者适配器
+  只要迭代器中的某个方法`A`在其内部调用了`next`方法，那么`A`就被称为消费性适配器，由于`next`方法的调用会消耗迭代器中的元素，所以调用`A`方法会消耗迭代器中的元素
+
+  > 例子：`sum`方法，拿走迭代器的所有权，并不断调用`next`方法对迭代器中的元素做加法
+
+  **消费掉一个迭代器，返回一个值**
+
+- 迭代器适配器
+  迭代器适配器是惰性的，在单独作用的时候不产生任何的行为，它需要一个消费者适配器来收尾
+  > 例子：`map`方法是一个迭代器适配器
+  ```rust
+  let v1 = vec![1, 2, 3];
+  let v2 : Vec<_> = v1.iter().map(|x| x + 1).collect();
+  ```
+  这里的`collect`方法就是一个消费者适配器
+
+- `collect`
+  
+  前面已经看到`collect`方法是一个消费者适配器，使用这个方法可以将迭代器中的元素收集起来转化为一个类型
+
+  > 注意我们需要显式地告诉编译器我们希望用`collect`转化的类型，这是因为`collect`非常强大，可以转化为多种不同的类型，编译器不知道我们希望转化成什么类型
+
+  例：用`collect`方法收集一个`HashMap`
+  ```rust
+  let names = ["sunface", "sunfei"];
+  let age = [18, 18];
+  let folks : HashMap<_, _> = names.iter().zip(age.iter()).collect();
+
+  println!("{:?}",folks);
+  ```
+
+###### 实现Iterator特征
+
+其他的集合类型也可以像数组一样创建迭代器，例如`HashMap`，我们也可以自己创建自己的迭代器，只需要我们自己定义一个类型，然后去实现为这个类型去实现一个`Iterator`的特征即可
+
+例：接下来我们创建`Counter`这个迭代器
+
+```rust
+struct Counter {
+  count : u32
+}
+```
+然后为`Counter`实现一个关联函数`new`，用于创建新的`Counter`实例
+
+```rust
+impl Counter {
+  fn new () -> Counter {
+    Counter{count : 0}
+  }
+}
+```
+
+有了这个，我们就可以为`Counter`实现`Iterator`特征了
+
+```rust
+impl Iterator for Counter {
+  type Item : u32;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.count < 5 {
+      self.count += 1;
+      Some(self.count)
+    } else None
+  }
+}
+```
+
+这样我们就得到了一个迭代器
+
+这个迭代器的其他方法都具有默认实现[基于`next`方法]，因此无需一个一个手动实现
+
+###### `enumerate`
+
+`enumerate`方法是一个迭代器适配器，针对于`for`循环我们可以采用`enumerate`方法获取迭代器中元素的索引
+
+```rust
+let v = vec![1, 2, 3];
+for (i, v) in v.iter().enumerate() {
+  println!("第{}个值是{}",i, v);
+}
+```
+
+`enumerate`方法会返回一个迭代器，每个迭代器中的元素是一个`tuple`，为`(index, value)`
+
+迭代器的性能比索引访问的效率更高，迭代器是`Rust`的零成本抽象之一
+
+> 零开销原则：What you don't use, you don't pay for. And further: What you use, you couldn't hand code any better : )
+> <div style = "text-align:right">----Bjarne Stroustrup</div>
+
+
+---
+
+## 常用工具链
+
+### 自动化测试
+
+#### 编写测试以及控制执行
+
+当我们用cargo创建一个`lib`包的时候，它会为我们直接创建一个测试模块
+
+```rust
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn you_can_assert() {
+        assert!();
+    }
+}
+```
+在这段代码中:
+- `#[cfg(test)]`是一个属性宏，用于条件编译
+- `test`标识测试模块
+- `#[test]`是一个属性，类似于`Debug`之类的，经过`test`标记的函数就可以被测试执行器发现并执行运行，在测试模块中还可以定义一些非测试函数，用于设置环境/给测试函数提供一些通用的功能
+- `you_can_assert`是我们定义的测试函数
+- `assert!`一个断言
+
+使用`cargo test`来运行所有的测试
+
+**Rust在默认情况下会为每一个测试函数启动单独的线程去处理，当主线程`main`发现有一个测试线程失败了，`main`会将相应的测试标记为失败**
+
+> 多线程运行测试性能高，但可能存在数据竞争的风险
+
+在我们使用`assert!`断言时，为了更好地报错，我们可以添加更多信息
+```rust
+assert!(bool, "information");
+```
+
+当我们希望使用一个会`panic`的`test`的时候，我们可以在前面加上属性
+```rust
+#[should_panic]
+```
+当使用了这个之后，如果该测试函数没有按预期的`panic`那么会报错
+
+当我们使用如下的写法的时候
+
+```rust
+#[should_panic(expected = value)]
+```
+
+这时候如果测试函数`panic`了，并且`panic`的返回值为`value`那么这个测试会通过
+
+注意我们可以这样写，比如有一个`panic`如下
+```rust
+panic!("qwq {}", value);
+```
+那么当我们设定
+```rust
+#[should_panic(expected = "qwq")]
+```
+这样是可以通过的，换而言之，`expected`只需要识别前缀就可以了
+
+
 
 ## Appendix
 
@@ -1227,4 +1504,17 @@ where T : Fn(u32) -> u32,
   返回`Self`
   
 - `const`关键字
+  需要指定类型，在编译期就可以计算出值，可以类比`#define`
+
+- `zip`迭代器适配器
+  将两个迭代器压在一起
+
+- `filter`迭代器适配器
+  可以通过闭包捕获值，然后加一个条件对迭代器中的元素进行过滤，不满足条件就从迭代器里面踢出去
+  ```rust
+  shoes.into_iter().filter(|s| s.size == q.size).collect();
+  ```
   
+### 随手记
+
+- `()`这个特殊的元组作为值不能绑定到变量上
