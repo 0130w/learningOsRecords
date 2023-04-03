@@ -40,7 +40,6 @@
         - [宏?](#宏)
           - [一个常见错误](#一个常见错误)
           - [带返回值的main函数](#带返回值的main函数)
-    - [Crate和Modules](#crate和modules)
       - [Crate和Package](#crate和package)
         - [Crate](#crate)
         - [Package](#package)
@@ -69,6 +68,24 @@
           - [跳转到标准库/第三方库/自己的库](#跳转到标准库第三方库自己的库)
           - [跳转到同名项](#跳转到同名项)
         - [文档搜索别名](#文档搜索别名)
+  - [Rust进阶学习](#rust进阶学习)
+    - [生命周期](#生命周期-1)
+      - [深入生命周期](#深入生命周期)
+        - [生命周期检查](#生命周期检查)
+        - [无界生命周期](#无界生命周期)
+        - [生命周期约束](#生命周期约束)
+        - [闭包的消除规则](#闭包的消除规则)
+        - [NLL(Non-Lexical Lifetime)](#nllnon-lexical-lifetime)
+        - [Reborrow](#reborrow)
+        - [生命周期消除规则补充](#生命周期消除规则补充)
+          - [impl块消除](#impl块消除)
+      - [\&'static和T:'static](#static和tstatic)
+          - [\&‘static](#static)
+          - [T : 'static](#t--static)
+          - [static到底针对谁](#static到底针对谁)
+      - [函数式编程](#函数式编程)
+        - [闭包](#闭包)
+          - [结构体中的闭包](#结构体中的闭包)
   - [Appendix](#appendix)
     - [常用Crate](#常用crate)
       - [文件系统](#文件系统)
@@ -248,8 +265,6 @@ fn main () {
 ```rust
 pub struct Screen {
     pub components : Vec<Box<dyn Draw>>,
-    // 这里用 pub components : Vec<&dyn Draw>就不太行
-    // 因为要指明声明周期
 }
 ```
 
@@ -528,8 +543,6 @@ fn first(arr : &[i32]) -> Option<&i32> {
 > main函数有多种返回值，这是因为实现了std::process::Termination特征
 
 > https://doc.rust-lang.org/std/process/trait.Termination.html
-
-### Crate和Modules
 
 #### Crate和Package
 
@@ -866,6 +879,276 @@ pub struct owo{}
 
 ---
 
+## Rust进阶学习
+
+### 生命周期
+
+#### 深入生命周期
+
+##### 生命周期检查
+
+例1:分析以下的代码，模拟编译器对代码进行生命周期标注
+
+```rust
+#[derive(Debug)]
+struct Foo;
+
+impl Foo {
+    fn mutate_and_share<'a>(&'a mut self) -> &'a Self {
+        &'a *self
+    }
+    fn share<'a>(&'a self) {}
+}
+
+fn main() {
+  'b : {
+    let mut foo = Foo;
+    'c : {
+        let loan = foo.mutate_and_share();
+        'd : {
+            foo.share();
+              }
+        println!("{:?}", loan);
+    }
+  }
+}
+```
+
+这段代码不能编译的原因是`foo.share()`的不可变引用与`foo.mutate_and_share()`可变引用同时存在，由规则3可知，`loan`的生命周期应该与`foo`可变引用的生命周期一致，因此`foo`的可变引用在`c`的全过程都存在，因此`d`过程中使用`foo`的不可变引用会报错
+
+> 按照这个分析，只要我们去掉println!("{:?}", loan);就能够成功运行
+> 这个的原因其实在于我们的规则3，这个规则说不定并不是一个特别好的规则，只是一个相对而言比较粗糙的实现
+
+例2:分析以下的代码，模拟编译器对代码进行生命周期标注
+
+```rust
+#![allow(unused)]
+fn main() {
+    use std::collections::HashMap;
+    use std::hash::Hash;
+    fn get_default<'m, K, V>(map: &'m mut HashMap<K, V>, key: K) -> &'m mut V
+    where
+        K: Clone + Eq + Hash,
+        V: Default,
+    {
+        match map.get_mut(&key) {
+            Some(value) => value,
+            None => {
+                map.insert(key.clone(), V::default());
+                map.get_mut(&key).unwrap()
+            }
+        }
+    }
+}
+```
+
+这个感觉就比较难受，编译器知道`match map.get_mut`时创建了一个可变借用，但是它不知道在`None`的时候这个可变引用可以被释放掉，因此给这个可变引用创建了一个很大的作用域，从而导致了`map.insert(key.clone(), V::default())`这里无法创建一个可变引用
+
+##### 无界生命周期
+
+`unsafe`代码经常会凭空产生引用，而一个引用必须会有生命周期，这种生命周期被称为无界声明周期 _(unbound lifetime)_
+
+无界生命周期经常发生在解引用裸指针 _(raw pointer)_ 的时候
+
+```rust
+fn f<'a, T>(x : *const T) -> &'a T {
+  unsafe {
+    &*x
+  }
+}
+```
+
+`'a`这种无界生命周期没有受到任何约束，想要多大就有多大，在上面的例子中，比如T是一个引用，表示为`&'b T`，此时`'a`为`'unbounded`，那么`&'unbounded &'b T`会被视为`&'b &'b T`而通过编译检查
+
+> 我们需要尽可能避免无界生命周期，因为这很可能会导致悬垂引用与内存泄漏问题，编译器无法去释放内存
+
+##### 生命周期约束
+
+> **被引用者的生命周期必须要大于等于引用者**
+
+- `'a : 'b`
+  表示生命周期`'a`必须长于`'b`
+
+- `T : 'a`
+  表示类型`T`的生命周期要长于`a`，这在Rust1.30后会自动推导
+
+> 在进行类型转换的时候，也只能够将具有更长生命周期的类型转换为生命周期较短的类型
+
+##### 闭包的消除规则
+
+对于函数体而言，它的消除规则之所以能生效是因为其生命周期完全体现在签名的引用类型上，但闭包与函数不一样
+
+```rust
+let closure_slision = |x : &i32| -> &i32 {x};
+```
+
+这段代码不能够正常通过编译
+
+> **用Fn特征解决闭包生命周期**
+
+##### NLL(Non-Lexical Lifetime)
+
+简单来说就是Rust1.31以前的版本的编译器的规则都是(Lexical Lifetime):引用的生命周期从借用开始，一直持续到作用域结束
+
+在Rust1.31以后，引入了NLL规则：引用的声明周期从借用开始，一直持续到最后一次使用的时候
+
+> https://github.com/rust-lang/polonius
+
+这个我拿一段stackoverflow上的代码例子
+
+```rust
+fn main() {
+  let v = vec![1, 2, 3];
+  let score = &v[0];
+  v.push(4);
+}
+```
+
+在以前这段代码是不能通过编译的，原因在于score对v的引用一直持续到花括号结束，现在可以了:)
+
+##### Reborrow
+
+```rust
+fn main() {
+  let mut p = Point {x : 0, y : 0};
+  let r = &mut p;
+  // reborrow
+  let rr : &Point = &*r;
+  println!("{}", rr); // 由NLL,rr作用域结束
+  r.move_to(10, 10);
+  println!("{}", r);
+}
+```
+这里,`rr`是对`r`的`reborrow`，但不能在`rr`的生命周期内再次使用`r`
+
+##### 生命周期消除规则补充
+
+###### impl块消除
+
+```rust
+impl <'a> Reader for BufReader<'a> {
+  // not used 'a
+}
+```
+
+以上的特征中没有用到那个声明周期，于是我们可以改写成如下形式
+
+```rust
+impl Reader for BufReader<'_> {
+  // methods
+}
+```
+
+#### &'static和T:'static
+
+字符串字面值具有`'static`的生命周期
+
+```rust
+`&'static str
+```
+除此之外特征对象也具有`'static`的生命周期
+
+另一种`'static`的用法是`T : 'static`
+
+###### &‘static
+
+对于`&'static`而言，生命周期仅针对于该**引用**，而不针对于**持有引用的变量**
+
+持有该引用的变量依然受到`NLL`规则的限制
+
+###### T : 'static
+
+- case 1 :
+  ```rust
+  fn print_it<T: Debug + 'static>( input: T) {
+      println!( "'static value passed in is: {:?}",input);
+  }
+
+  fn main() {
+      let i = 5;
+      print_it(&i);
+  } // i drop
+  ```
+考虑上面这段代码，`i`在花括号末位被drop，但此时程序还没有结束，因此对`T`约束的`static`无法满足，将程序改成如下形式
+
+```rust
+fn print_it<T: Deubg + 'static>(input: &T) {
+  println!("static value passed in is: {:?})", input);
+}
+
+fn main() {
+  let i = 5;
+  print_it(&i);
+}
+```
+这段代码不会报错，原因在于我们输入的是`&T`，根本没用到`T`，因此编译器不会去检查`T`的特征是否满足，只会去看`&T`的生命周期
+
+###### static到底针对谁
+
+针对于**引用指向的数据**而不是引用，引用指向的数据被写进了二进制包里面
+
+#### 函数式编程
+
+函数式特性:
+- 闭包(Closure)
+- 迭代器 (Iterator)
+- 模式匹配
+- 枚举
+
+##### 闭包
+
+闭包是一种匿名函数，可以**赋值给变量**也可以**作为参数传递给函数**，不同于函数的是，它允许捕获调用者作用域中的值
+
+> 注意是闭包赋值给变量，因此变量就是闭包函数，而不是将闭包的值赋值给变量，因此下面的做法是可以的
+```rust
+  let fun = || {...}; //此时fun是一个闭包
+  fun(parm1, parm2, ...)  //返回值为闭包最后的表达式值
+```
+
+闭包的形式定义如下：
+
+- ```rust
+  |parm1, parm2, ...| {
+      sentence 1;
+      sentence 2;
+      return_value
+  }
+  ```
+
+当只有一个返回表达式的时候可以简化为
+
+- `|parm1, ...| return_value
+  
+###### 闭包的使用
+
+闭包的类型推导不是泛型，当编译器推导出一种类型后就会一直使用该类型
+
+```rust
+let example_closure = |x| x;
+
+let s = example_closure(String::from("qwq"));
+let n = example_closure(1);
+```
+
+上面这段代码是不行的，理由是编译器从第一次调用`example_closure`的时候推导出了闭包中`|x|`的类型为`String`，因此下面一行传入的参数就有问题了
+
+> 有没有什么办法能够让闭包接受一个泛型呢？
+
+###### 结构体中的闭包
+
+> 实现一个简易的缓存，功能是获取一个值并将其存起来
+
+```rust
+struct Cacher<T>
+where T : Fn(u32) -> u32,
+{
+  query : T,
+  value : Option<u32>,
+}
+```
+
+`query`是一个闭包，该闭包实现了特征`T`
+
 ## Appendix
 
 ### 常用Crate
@@ -939,4 +1222,9 @@ pub struct owo{}
 
 - `to_uppercase`方法
   返回一个`String`类型
+
+- `clone`特征
+  返回`Self`
+  
+- `const`关键字
   
