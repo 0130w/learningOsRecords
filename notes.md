@@ -95,7 +95,8 @@
           - [into\_iter, iter, iter\_mut](#into_iter-iter-iter_mut)
           - [消费者与适配器](#消费者与适配器)
           - [实现Iterator特征](#实现iterator特征)
-          - [`enumerate`](#enumerate)
+          - [enumerate方法](#enumerate方法)
+          - [计算阶乘的例子](#计算阶乘的例子)
   - [常用工具链](#常用工具链)
     - [自动化测试](#自动化测试)
       - [编写测试以及控制执行](#编写测试以及控制执行)
@@ -1344,7 +1345,7 @@ impl Iterator for Counter {
 
 这个迭代器的其他方法都具有默认实现[基于`next`方法]，因此无需一个一个手动实现
 
-###### `enumerate`
+###### enumerate方法
 
 `enumerate`方法是一个迭代器适配器，针对于`for`循环我们可以采用`enumerate`方法获取迭代器中元素的索引
 
@@ -1362,6 +1363,32 @@ for (i, v) in v.iter().enumerate() {
 > 零开销原则：What you don't use, you don't pay for. And further: What you use, you couldn't hand code any better : )
 > <div style = "text-align:right">----Bjarne Stroustrup</div>
 
+###### 计算阶乘的例子
+
+```rust
+pub fn factorial(num : u64) -> u64 {
+  match num {
+    0 => 1,
+    value => {
+      let mut u = 1;
+      for i in 1..=value {
+        u *=i;
+      }
+      u
+    }
+  }
+}
+```
+
+然而这个方法早已被rustlings的设计者看破(不是)，并给出了指导意见，可以去看看`fold`方法或者`rfold`方法，于是我写出了下面很丑的代码:P
+```rust
+match num {
+        0 => 1,
+        value => {
+            (1..=value).map(|x| x).collect::<Vec<_>>().iter().fold(1u64, |mul, elem| mul * elem)
+        }
+    }
+```
 
 ---
 
@@ -1514,6 +1541,18 @@ panic!("qwq {}", value);
   ```rust
   shoes.into_iter().filter(|s| s.size == q.size).collect();
   ```
+
+- `fold`方法
+  为实现了`Iterator`特征的类型实现的一种方法，可以从左到右对迭代器中元素做操作，最终返回一个值
+  示例
+  ```rust
+  let a = [1, 2, 3];
+  let b = a.iter().fold(0, |acc, ele| acc + ele); // 0为acc初值
+  // b此时为6 即得到了1+2+3的结果
+  ```
+
+- `rfold`方法
+  与`fold`方法十分类似，只不过操作顺序是从迭代器右边开始的
   
 ### 随手记
 
