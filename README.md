@@ -12,6 +12,7 @@
     - [Day1](#day1)
     - [Day2](#day2)
     - [Day3](#day3)
+    - [Day4](#day4)
 
 
 ---
@@ -35,3 +36,9 @@
 > date: 2023.4.3
 
 学习Rust语言，目前进度在Rust Course的结束了迭代器部分，rustlings中的练习进度为74/94
+
+### Day4
+
+> date: 2023.4.4
+
+学习Rust语言，学习了一些高级进阶部分知识，rustlings中的练习进度为85/94
