@@ -1,6 +1,7 @@
 # learningOsRecords
 
-- [Rust学习笔记](./notes.md)
+- [Rust学习笔记](./rustnotes.md)
+- [RISC-V学习笔记](./risc_vnotes.md)
 
 ---
 
@@ -14,6 +15,7 @@
     - [Day3](#day3)
     - [Day4](#day4)
     - [Day5](#day5)
+    - [Day6](#day6)
 
 
 ---
@@ -49,3 +51,9 @@
 > date: 2023.4.5
 
 学习Rust语言，今天由于计网HW比较多所以留的时间不是很多，Rust Course的线程还是不太熟，*rustlings进度:Finished.*
+
+### Day6
+
+> date: 2023.4.6
+
+休息，看了第一章的RISC-V的书
