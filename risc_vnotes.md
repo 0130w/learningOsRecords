@@ -509,5 +509,5 @@ RISC-V汇编语言中包含一个仅用于过程的指令`jal`：跳转到某个
 
 在这段代码中，我们从开始处执行，然后跳转到`0x0`的地址，并将`x1`寄存器中的内容记为了`0x1234123412341234`，然后执行完了`addi x2, x3, 1`之后跳转回`x1`中记录的地址对应的指令，执行`addi x3, x4, 1`
 
-至于为什么`jalr`中间要传一个参数`x0`，结合[stackoverflow](https://stackoverflow.com/questions/58280089/risc-v-difference-between-jal-and-jalr)的结论，我认为应该是RISC-V开发者希望保持这种指令格式而传入的一个无关的参数
+至于为什么`jalr`中间要传一个参数`x0`，结合[stackoverflow上的回答](https://stackoverflow.com/questions/58280089/risc-v-difference-between-jal-and-jalr)的结论，我认为应该是RISC-V开发者希望保持这种指令格式而传入的一个无关的参数
 

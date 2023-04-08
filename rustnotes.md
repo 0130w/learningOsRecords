@@ -1846,6 +1846,7 @@ panic!("qwq {}", value);
   
 - `clone`方法
   不是所有的`clone`都是深拷贝，例如Rc指针的引用计数增加，[迭代器的拷贝](https://course.rs/compiler/pitfalls/iterator-everywhere.html)
+  > 判断什么时候使用`clone` -> 是否是热点路径
 
 - `const`关键字
   需要指定类型，在编译期就可以计算出值，可以类比`#define`
@@ -1899,6 +1900,24 @@ panic!("qwq {}", value);
   提供不可变的引用给`borrowed data`，如果需要修改它会将数据进行`clone`操作，注意这个操作是懒惰的，使用这个需要数据实现`Borrow`特征
   > `use  std::borrow::Cow;`
   
+- `env::args()`
+  需要用`use std::env`引入，可以分析传入的命令行参数，并返回一个迭代器
+  当传入的命令行参数中包含了非`Unicode`字符时该方法会直接崩溃
+
+- `env::args_os()`
+  返回一个`OsString`类型的迭代器，对于非`Unicode`类型的字符有更好的处理
+  `arg_os`会引入额外的跨平台复杂性
+
+- `fs::read_to_string(file_path)`
+  返回一个`Result<String, Error>`类型，如果只填了文件的名字，默认路径是**项目文件**根目录下面
+
+- `unwrap_or_else`方法
+  成功返回`Ok`中的值，失败了按照后面闭包里面的处理
+
+- `process::exit(code)`
+  立即终止当前进程并返回`code`退出码，`code = 1`为非正常退出
+  在多线程中，如果调用了`process::exit(code)`会直接终止所有的线程，包括正在运行和创建了还没运行的(终止整个进程)
+
 ### 随手记
 
 - `()`这个特殊的元组作为值不能绑定到变量上
@@ -1916,3 +1935,8 @@ panic!("qwq {}", value);
 - `Result`类型中的`Err(value)`里面的`value`的类型是一个错误
 
 - 元组没有实现迭代器特征，如果需要，可以先将元组转数组
+
+- `cargo run -- args`
+  这里的`args`就是传入的命令行参数，这里的`--`就是告诉`cargo`后面的参数不是你用的:P
+
+- Rust中的String类型实现了`Deref Trait`，`&String`能够自动转换为`&str`
