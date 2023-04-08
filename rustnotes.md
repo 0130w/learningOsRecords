@@ -1452,7 +1452,21 @@ let a = 3.1 as i8;
 
 > Rust中，强制转换并不具有传递性
 > "就算e as U1 as U2"是合法的，也不能说明"e as U2"是合法的
-> 我暂时不是特别能理解这个东西，有什么例子吗？
+
+**感谢来自creatoy的回答**，下面给出一个相关例子：
+
+```rust
+enum MyEnum {
+    Zero,
+}
+
+fn main() {
+    let _raw_ptr1 = MyEnum::Zero as i32 as *const i32;
+    // let _raw_ptr2 = MyEnum::Zero as *const i32;
+}
+```
+
+在这个例子中，`main`函数的第二行就是不合法的
 
 ##### 强制类型转换
 
