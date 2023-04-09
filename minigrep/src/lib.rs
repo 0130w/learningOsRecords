@@ -1,6 +1,8 @@
 use std::error::Error;
-use std::{fs, result};
-use std::panic::RefUnwindSafe;
+use std::fs;
+use std::env;
+
+// I AM NOT DONE
 
 impl Config {
     pub fn build(args : &Vec<String>) -> Result<Config, &'static str>{
@@ -9,20 +11,29 @@ impl Config {
         }
         let query = args[1].clone();
         let file_path = args[2].clone();
-        Ok(Config{ query, file_path })
+        let ignore_case = env::var("IGNORE_CASE").map_or(true, |var| var.ne("0"));
+
+        Ok(Config{ query, file_path, ignore_case })
     }
 }
 
 pub struct Config {
     pub query : String,
-    pub file_path : String
+    pub file_path : String,
+    pub ignore_case: bool,
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>>{
     let contents = fs::read_to_string(config.file_path)?;
 
-    for line in search(&config.query, &contents) {
-        println!("{}", line);
+    let results = if config.ignore_case {
+        search_case_intensitive(&config.query, &contents)
+    } else {
+        search(&config.query, &contents)
+    };
+
+    for line in results {
+        println!("{line}");
     }
 
     Ok(())

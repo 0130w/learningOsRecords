@@ -1924,6 +1924,9 @@ panic!("qwq {}", value);
 - `contains`方法
   接受一个参数，用于查找一个字符串中是否有这个东西
 
+- `is_ok()`方法
+  如果返回`Ok(_)`则为`True`，否则为`False`
+
 ### 随手记
 
 - `()`这个特殊的元组作为值不能绑定到变量上
@@ -1946,3 +1949,9 @@ panic!("qwq {}", value);
   这里的`args`就是传入的命令行参数，这里的`--`就是告诉`cargo`后面的参数不是你用的:P
 
 - Rust中的String类型实现了`Deref Trait`，`&String`能够自动转换为`&str`
+
+- 借助`std::env`Crate可以实现控制环境变量
+  `env::var("PATH")`来读取环境变量`PATH`的值，返回一个Result类型
+
+- 如果希望临时运行时配置环境变量可以在`cargo run`之前写，例如
+  `IGNORE_CASE=1 cargo run`
