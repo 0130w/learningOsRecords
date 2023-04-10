@@ -2,6 +2,7 @@
 
 - [Rust学习笔记](./rustnotes.md)
 - [RISC-V学习笔记](./risc_vnotes.md)
+- [rCore学习笔记](rCore.md)
 
 ---
 
