@@ -24,6 +24,7 @@
     - [Day11](#day11)
     - [Day12](#day12)
     - [Day13](#day13)
+    - [Day14](#day14)
 
 
 ---
@@ -107,3 +108,9 @@
 > date: 2023.4.13
 
 正在看那个手册，怎么说呢，感觉有点难，准备小溜一下视频讲解
+
+### Day14
+
+> date: 2023.4.14
+
+忙了一会别的，准备周日的考试，顺便学了一下Verilog，做完了[HDLBits](https://hdlbits.01xz.net/wiki/Main_Page)的`Getting Start`和`Verilog Language`全部
