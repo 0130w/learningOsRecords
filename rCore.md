@@ -12,6 +12,7 @@
       - [特权级的软硬件协同设计](#特权级的软硬件协同设计)
       - [RISC-V特权级架构](#risc-v特权级架构)
         - [RISC-V异常一览表](#risc-v异常一览表)
+  - [Chapter 4](#chapter-4)
   - [Chapter 5](#chapter-5)
   - [多次使用命令记录](#多次使用命令记录)
 
@@ -127,6 +128,17 @@ Trap指令是通过在上层软件中执行特定的指令触发的
 这种接口叫做二进制接口的原因在于，它其实是`机器/汇编指令`级别的接口，这是因为各种模式下的软件可以用不同的编程语言实现，为了使接口能够满足跨高级语言的通用性和灵活性的特性，这些接口需要下降到底层
 
 
+## Chapter 4
+
+解析两个关键的函数
+
+```rust
+pub fn translated_byte_buffer
+```
+
+在`memory_set`里面，创建了内核空间
+
+
 ## Chapter 5
 
 1. `fork`系统调用
@@ -141,10 +153,47 @@ pub fn sys_fork() -> isize;
 ```rust
 pub fn sys_exec(path: &str) -> isize;
 ```
-`path`为需要加载的可执行文件的名字，`path`需要以`\0`结尾，功能为给当前进程的地址空间加载一个特定的可执行文件，返回用户态后执行，如果找不到该可执行文件，则返回`-1`
+`path`为需要加载的可执行文件的名字，`path`需要以`\0`结尾，功能为给当前进程的地址空间加载一个特定的可执行文件，返回用户态后执行，如果找不到该可执行文件，则返回`-1`，否则不应该返回
 
+3. `waitpid`系统调用
 
+```rust
+pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize;
+```
+功能:当前进程等待一个子进程变成僵尸进程，回收其全部资源并收集其返回值
+参数:`pid`表示等待的子进程的`ID`，如果为`-1`表示等待任意一个子进程;`exit_code`表示保存子进程返回值的地址，如果这个地址为`0`则表示不必保存
+返回值:如果要等待的进程不存在则返回`-1`，如果要等待的子进程均未结束则返回`-2`?否则返回结束的子进程的`ID`
 
+`sys_waitpid`在用户库中被封装成两个不同的`API`
+- `wait(exit_code: &mut i32)` 用于等待任意一个进程
+- `waitpid(pid: usize, exit_code: &mut i32)` 用于等待`ID`为`pid`的子进程结束
+
+4. `sys_read`系统调用
+
+```rust
+pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize{
+  ...
+}
+```
+`fd`为待读文件的文件描述符，`buffer`切片给出了缓冲区
+错误则返回`-1`，否则返回实际读入的字节数
+
+5.  `get_app_data_by_name(name: &str) -> Option<&' static [u8]>`
+
+这个函数能够通过`app`的名字来查找`ELF`数据
+
+6.  `list_apps()`打印出所有可用的应用
+
+同一时间存在的所有进程都有一个自己的进程标识符，它们是互不相同的整数。在实验中抽象为
+`pub struct PidHandle(pub usize)`
+
+简单栈式分配策略的进程标识符分配器`PidAllocator`，并将其实例化为`PID_ALLOCATOR`
+
+想要得到一个`PidHandle`，我们可以通过全局接口`pid_alloc`
+
+在内核栈`KernelStack`中保留着其所属进程`pid`
+
+有如下函数和方法
 
 ## 多次使用命令记录
 
@@ -162,4 +211,3 @@ rust-readobj -h <elf file>
 rust-objdump -arguments <elf file>
 ```
 用于反汇编导出汇编程序
-
