@@ -138,6 +138,8 @@ pub fn translated_byte_buffer
 
 在`memory_set`里面，创建了内核空间
 
+为什么要去`areas[0]`里面找？
+
 
 ## Chapter 5
 
@@ -194,6 +196,41 @@ pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize{
 在内核栈`KernelStack`中保留着其所属进程`pid`
 
 有如下函数和方法
+
+```rust
+pub fn kernel_stack_position(app_id: usize) -> (usize, usize)   // return (bottom, top) of a kernel stack, here id is pid
+
+impl KernelStack {
+    pub fn new(pid_handle: &PidHandle) -> Self // 根据一个进程标识符返回一个内核栈
+
+    pub fn push_on_top<T>(&self, value:T) -> *mut T // 将一个类型为T的变量压入内核栈顶并返回其裸指针
+
+    pub fn get_top(&self) -> usize // 获取当前内核栈顶在内核地址空间中的地址
+}
+
+```
+
+什么是idle控制流?
+
+初始化进程的进程控制块`INITPROC`
+
+`suspend_current_and_run_next`函数可以暂停当前任务，并切换到下一个任务
+
+`fork`系统调用的实现
+
+最为关键且困难的点在于为子进程创建一个与父进程几乎完全相同的地址空间
+
+`MapArea`中的`from_another`函数可以从一个逻辑段复制得到一个虚拟地址区间、映射方式(一一映射这种)、控制权限均相同的逻辑段，不同之处在于它没有被真正映射到物理页上，因此`data_frames`字段为空
+
+`Memory set`中的`from_existed_user`可以复制一个完全相同的地址空间
+
+接下来梳理一下`fork`以及`exec`方法的逻辑
+
+```rust
+pub fn fork
+
+
+```
 
 ## 多次使用命令记录
 
