@@ -14,6 +14,8 @@
         - [RISC-V异常一览表](#risc-v异常一览表)
   - [Chapter 4](#chapter-4)
   - [Chapter 5](#chapter-5)
+  - [Chapter 8](#chapter-8)
+    - [信号量机制](#信号量机制)
   - [多次使用命令记录](#多次使用命令记录)
 
 ## Chapter 0
@@ -250,8 +252,25 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize{}
 
 内核在收到线程发出的`exit`系统调用之后,会回收线程占用的部分资源,而内核栈之类的东西需要等进程执行`sys_waittid`来执行回收
 
+在实现银行家算法的过程中,我们可以很容易看到,所谓的资源其实就是我们维护的锁/信号量
 
+我们在`Processor`里面很容易找到`mutex_list`以及`semaphore_list`,这两个应该是`Available list`,我们还需要知道`Need Matrix`以及`Now Matrix`
 
+关键是这两个东西在哪呢?
+
+首先下面的矩阵的行我们已经找到了,就是遍历所有的线程,这也就是说遍历所有的`task[task_tid]`
+
+其次,对于一个`TCB`而言,我们可以看到`TCBinner`里面维护了一个`res : Option<TaskUserRes>`
+
+我们的目标是找到这个`TCB`在哪维护了还需要的资源量以及已经持有的资源量
+
+呃,暂时看到`mutex.rs`中定义了一个叫`MutexBlocking`的东西,里面似乎有`wait_queue`,这个看起来能够得到`Need Matrix`
+
+`Need Matrix`:
+
+`Now Matrix`:
+
+草,感觉不如自己写一个
 
 ## 多次使用命令记录
 
